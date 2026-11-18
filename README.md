@@ -6,7 +6,7 @@
 search that streams matching rulings as they are found and computes outcome analytics
 live, with no external dependency.**
 
-<!-- TODO: Insert 15s demo GIF here -->
+![LexStream On-Prem demo: rulings arrive one by one over the search stream, a text query narrows them, a simulated crawl indexes three new rulings stage by stage, and the tenant partitioning view is shown](docs/demo.gif)
 
 > **Reference demo with invented data.** "LexStream On-Prem" is a fictional platform
 > name. Every ruling, authority, statute, portal, judge, inspector, party and tenant in
