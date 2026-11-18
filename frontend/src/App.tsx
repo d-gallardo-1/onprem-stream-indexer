@@ -78,7 +78,8 @@ export default function App() {
               <IngestView snapshot={snapshot} portals={directory.data.source_portals} />
             )}
             {view === 'partition' && (
-              <PartitionView tenant={snapshot.tenant} directory={directory.data} query={query} />
+              <PartitionView tenant={snapshot.tenant} directory={directory.data} query={query}
+                offline={offline} />
             )}
           </fieldset>
         )}

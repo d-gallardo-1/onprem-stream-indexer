@@ -124,7 +124,13 @@ export function useReconnects(connected: boolean, key: string | null): number {
   const seen = useRef<{ key: string | null; state: 'never' | 'up' | 'down' }>({ key, state: 'never' });
 
   useEffect(() => {
-    if (seen.current.key !== key) seen.current = { key, state: 'never' };
+    if (seen.current.key !== key) {
+      // In the render that changes the tenant, `connected` still describes the
+      // previous tenant's stream. It is not read: the new stream reports itself
+      // on the next change of the flag.
+      seen.current = { key, state: 'never' };
+      return;
+    }
     if (connected) {
       if (seen.current.state === 'down') setCount((value) => value + 1);
       seen.current.state = 'up';

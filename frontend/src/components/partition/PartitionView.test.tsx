@@ -42,6 +42,16 @@ describe('PartitionView', () => {
     expect(screen.getByText('Outcome: Upheld')).toBeTruthy();
   });
 
+  it('turns the report link off when the backend is unreachable', () => {
+    render(<PartitionView tenant={LAW} directory={DIRECTORY} query={EMPTY_QUERY} offline />);
+
+    expect(screen.queryByRole('link', { name: /Download .xlsx report/ })).toBeNull();
+    const disabled = screen.getByText('Download .xlsx report').closest('[aria-disabled]');
+    expect(disabled?.getAttribute('aria-disabled')).toBe('true');
+    expect(disabled?.hasAttribute('href')).toBe(false);
+    expect(screen.getByText(/The report is available again once the live connection is back/)).toBeTruthy();
+  });
+
   it('says what an unfiltered report covers and that formulas are neutralised', () => {
     render(<PartitionView tenant={LAW} directory={DIRECTORY} query={EMPTY_QUERY} />);
 

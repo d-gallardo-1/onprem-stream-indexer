@@ -8,6 +8,7 @@ from datetime import date
 
 import pytest
 from openpyxl import load_workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
 from app.analytics.summary import summarise
 from app.data.corpus import default_rulings
@@ -88,7 +89,8 @@ def test_a_control_character_in_the_query_does_not_break_the_report(client, quer
 
     assert response.status_code == 200
     note = load_workbook(io.BytesIO(response.content))["Results"]["A2"].value
-    assert note.startswith("Query: ") and not any(ord(ch) < 9 for ch in note)
+    assert note.startswith("Query: ") and ILLEGAL_CHARACTERS_RE.search(note) is None
+    assert safe_cell(query) == ILLEGAL_CHARACTERS_RE.sub("", query)  # every such character is dropped
 
 
 @pytest.mark.parametrize("prefix", ["=", "+", "-", "@", chr(9) + "=", chr(13) + "=", "  ="])

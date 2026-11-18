@@ -98,3 +98,12 @@ def test_delay_comes_from_the_environment_and_is_clamped(monkeypatch):
     assert settings.stream_delay == 0.0
     assert settings.crawl_stage_delay == 0.7
     assert settings.max_stream_events == 500
+
+
+def test_stream_delay_stays_far_below_the_clients_stall_timeout(monkeypatch):
+    """The browser gives up on a search stream after 10 s of silence (STALL_MS in
+    frontend/src/hooks/useSearchStream.ts). The pause between two rulings must never
+    come close to that, whatever the environment asks for."""
+    monkeypatch.setenv("LEXSTREAM_STREAM_DELAY_MS", "600000")
+
+    assert load_settings().stream_delay == 5.0

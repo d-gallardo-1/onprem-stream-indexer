@@ -83,7 +83,9 @@ if [ -z "$healthy" ]; then
 fi
 
 cd "$frontend"
-if [ ! -d node_modules ]; then
+# npm writes node_modules/.package-lock.json when an install finishes. Testing for
+# the folder alone would keep a half-installed one left by an interrupted run.
+if [ ! -f node_modules/.package-lock.json ]; then
   echo "Installing frontend dependencies..."
   npm ci --no-fund --no-audit
 fi

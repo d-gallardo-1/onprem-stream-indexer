@@ -10,6 +10,8 @@ interface Props {
   directory: Directory;
   /** The query of the search view; the report covers exactly this query. */
   query: SearchQuery;
+  /** The backend is unreachable: the download would fail, so the link is turned off. */
+  offline?: boolean;
 }
 
 export const PARTITION_NOTICE =
@@ -25,7 +27,7 @@ const ROUTES: [string, string][] = [
 ];
 
 /** Tenant Partitioning & Export Inspector (orchestrator). */
-export function PartitionView({ tenant, directory, query }: Props) {
+export function PartitionView({ tenant, directory, query, offline = false }: Props) {
   const filters = [
     `Text: ${query.q.trim() || 'all rulings'}`,
     `Authority: ${query.authority || 'any'}`,
@@ -56,10 +58,23 @@ export function PartitionView({ tenant, directory, query }: Props) {
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <a className="btn mt-3" href={api.exportUrl(tenant.tenant_id, query)} download>
-              <Download aria-hidden="true" className="h-4 w-4" />
-              Download .xlsx report
-            </a>
+            {offline ? (
+              // A disabled fieldset does not reach a link, so the link is replaced.
+              <>
+                <span aria-disabled="true" className="btn mt-3 cursor-not-allowed opacity-50">
+                  <Download aria-hidden="true" className="h-4 w-4" />
+                  Download .xlsx report
+                </span>
+                <p className="mt-2 text-xs text-warn">
+                  The report is available again once the live connection is back.
+                </p>
+              </>
+            ) : (
+              <a className="btn mt-3" href={api.exportUrl(tenant.tenant_id, query)} download>
+                <Download aria-hidden="true" className="h-4 w-4" />
+                Download .xlsx report
+              </a>
+            )}
             <p className="mt-2 text-xs text-slate-400">
               Cell text that starts with =, +, - or @ is written as plain text, so a spreadsheet
               program cannot run it as a formula.

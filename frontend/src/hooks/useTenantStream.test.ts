@@ -152,3 +152,37 @@ describe('useReconnects', () => {
     expect(result.current).toBe(0);
   });
 });
+
+describe('useReconnects with the real stream', () => {
+  const both = (tenantId: string) =>
+    renderHook(
+      ({ id }) => {
+        const { status } = useTenantStream(id);
+        return useReconnects(status === 'CONNECTED', id);
+      },
+      { initialProps: { id: tenantId } },
+    );
+
+  it('does not count a tenant switch, whose first render still says connected', () => {
+    const { result, rerender } = both(ALPHA.tenant_id);
+    emit('snapshot', makeSnapshot(ALPHA));
+
+    rerender({ id: BETA.tenant_id });
+    emit('snapshot', makeSnapshot(BETA));
+
+    expect(result.current).toBe(0);
+  });
+
+  it('counts a real outage of the new tenant after a switch', () => {
+    const { result, rerender } = both(ALPHA.tenant_id);
+    emit('snapshot', makeSnapshot(ALPHA));
+    rerender({ id: BETA.tenant_id });
+    emit('snapshot', makeSnapshot(BETA));
+
+    act(() => FakeEventSource.latest.fail(true));
+    advance(RETRY_MS);
+    emit('snapshot', makeSnapshot(BETA));
+
+    expect(result.current).toBe(1);
+  });
+});

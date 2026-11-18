@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
-from app.models import CrawlState, SourcePortal
+from app.models import CrawlState, RulingSource, SourcePortal
 from app.partition import TenantPartition
 
 from .conftest import API, IND, LAW, sse_events, start_crawl, wait_for_crawl
@@ -72,3 +73,52 @@ def test_state_stream_over_http_sends_the_snapshot_with_sse_headers(client):
     assert events[0][1]["tenant"]["tenant_id"] == IND and events[0][1]["corpus"]["rulings"] == 10
     for bad in (0, 10_001):
         assert client.get(url, params={"tenant_id": IND, "max_events": bad}).status_code == 422
+
+
+def test_a_failed_crawl_leaves_a_traceback_in_the_server_log(engine, monkeypatch, caplog):
+    break_indexing(monkeypatch)
+    engine.start_crawl(LAW, PORTAL, 1)
+
+    with caplog.at_level(logging.ERROR, logger="app.engine"):
+        asyncio.run(engine.run_crawl(LAW, stage_delay=0))
+
+    record = caplog.records[-1]
+    assert "RUN-LAW-0001" in record.getMessage() and LAW in record.getMessage()
+    assert record.exc_info is not None and record.exc_info[0] is RuntimeError
+
+
+def test_a_failure_midway_keeps_the_rulings_already_indexed(engine, monkeypatch):
+    original = TenantPartition.index_crawled
+    calls = {"count": 0}
+
+    def fail_on_second(self):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise RuntimeError("second ruling is malformed")
+        return original(self)
+
+    monkeypatch.setattr(TenantPartition, "index_crawled", fail_on_second)
+    engine.start_crawl(LAW, PORTAL, 3)
+
+    asyncio.run(engine.run_crawl(LAW, stage_delay=0))
+
+    snapshot = engine.snapshot(LAW)
+    assert snapshot.crawl.state == CrawlState.FAILED
+    assert snapshot.corpus.crawled_rulings == 1  # a valid ruling is not thrown away
+    assert [r.source for r in snapshot.recent] == [RulingSource.SIMULATED_CRAWL]
+
+
+def test_an_error_after_completion_does_not_relabel_the_run_as_failed(engine, monkeypatch):
+    engine.start_crawl(LAW, PORTAL, 1)
+    publish = engine.publish
+
+    def fail_once_completed(tenant_id):
+        if engine.partition(tenant_id).crawl.state == CrawlState.COMPLETED:
+            raise RuntimeError("a subscriber queue broke")
+        publish(tenant_id)
+
+    monkeypatch.setattr(engine, "publish", fail_once_completed)
+
+    asyncio.run(engine.run_crawl(LAW, stage_delay=0))
+
+    assert engine.snapshot(LAW).crawl.state == CrawlState.COMPLETED

@@ -11,6 +11,8 @@ export const API_BASE = '/api/v1';
 
 export const EMPTY_QUERY: SearchQuery = { q: '', authority: '', outcome: '' };
 export const MAX_QUERY_CHARS = 120;
+/** A request that has not answered after this long is given up on. */
+export const REQUEST_TIMEOUT_MS = 15_000;
 
 /** Uses the server's own explanation when it sends one, so refusals are readable. */
 async function errorMessage(response: Response, fallback: string): Promise<string> {
@@ -23,13 +25,35 @@ async function errorMessage(response: Response, fallback: string): Promise<strin
   return fallback;
 }
 
+/**
+ * Every request has a time limit. Without one, a backend that accepts the
+ * connection and never answers would leave a button on "pending" for good.
+ * The caller's own signal (a newer search replacing this one) still cancels.
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
-  if (!response.ok) {
-    const fallback = `${init?.method ?? 'GET'} ${path} failed with HTTP ${response.status}`;
-    throw new Error(await errorMessage(response, fallback));
+  const label = `${init?.method ?? 'GET'} ${path}`;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  init?.signal?.addEventListener('abort', cancel);
+  if (init?.signal?.aborted) cancel();
+  try {
+    const response = await fetch(`${API_BASE}${path}`, { ...init, signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response, `${label} failed with HTTP ${response.status}`));
+    }
+    return (await response.json()) as T;
+  } catch (cause) {
+    if (timedOut) throw new Error(`${label} timed out after ${REQUEST_TIMEOUT_MS / 1000} s`);
+    throw cause;
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener('abort', cancel);
   }
-  return (await response.json()) as T;
 }
 
 /**

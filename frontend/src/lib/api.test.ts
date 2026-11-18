@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, EMPTY_QUERY, tenantParams } from './api';
+import { api, EMPTY_QUERY, REQUEST_TIMEOUT_MS, tenantParams } from './api';
 import { codeLabel, formatTime, gbp, percentText } from './format';
 import { splitHighlight } from './highlight';
 
@@ -72,6 +72,54 @@ describe('api', () => {
     stubFetch({ detail: [{ msg: 'structured' }] }, false, 500);
 
     await expect(api.reset()).rejects.toThrow('POST /ingest/reset failed with HTTP 500');
+  });
+});
+
+describe('request timeout', () => {
+  /** A fetch that never answers and rejects only when its signal is aborted. */
+  function hangingFetch() {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('gives up on a request that never answers and says so', async () => {
+    vi.useFakeTimers();
+    try {
+      hangingFetch();
+      const outcome = api.reset().catch((cause: Error) => cause.message);
+
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+
+      expect(await outcome).toBe('POST /ingest/reset timed out after 15 s');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still lets the caller cancel, and that is not reported as a timeout', async () => {
+    hangingFetch();
+    const controller = new AbortController();
+    const outcome = api.searchSnapshot('TNT-LAW-01', EMPTY_QUERY, controller.signal)
+      .catch((cause: Error) => cause.name);
+
+    controller.abort();
+
+    expect(await outcome).toBe('AbortError');
+  });
+
+  it('clears its timer once the answer arrives', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch({ status: 'reset' });
+      await api.reset();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

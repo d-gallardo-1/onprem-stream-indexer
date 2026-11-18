@@ -7,13 +7,17 @@ the tenant ID and resolves it through ``TenantStore.partition`` first.
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Callable
 
-from .models import CrawlRun, CrawlStage, SourcePortal, Tenant, TenantSnapshot
+from .models import CrawlRun, CrawlStage, CrawlState, SourcePortal, Tenant, TenantSnapshot
 from .partition import TenantPartition
 from .streaming.broadcaster import Broadcaster, SnapshotQueue
 from .tenancy import TenantStore
+
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -73,15 +77,23 @@ class LexStreamEngine:
         deterministic sequence of synthetic rulings.
         """
         partition = self.partition(tenant_id)
-        if partition.crawl is None:
+        run = partition.crawl
+        if run is None:
             return
         generation = self._generation
         try:
             await self._play_crawl(partition, generation, stage_delay)
         except Exception as exc:  # noqa: BLE001 - any failure must release the tenant
-            # Left as RUNNING, the run would answer 409 to every later crawl of
-            # this tenant. Cancellation (reset, shutdown) is not caught here.
-            if generation == self._generation:
+            # Always logged with its traceback, also when a reset has replaced the
+            # corpus: the tenant's own event log only carries one line.
+            logger.exception("Simulated crawl %s of tenant %s failed", run.run_id, tenant_id)
+            # Left as RUNNING, the run would answer 409 to every later crawl of this
+            # tenant. A run that had already completed keeps its state: an error
+            # while announcing it is not a failed crawl. Rulings indexed before the
+            # failure stay in the index. Cancellation is not caught here.
+            still_running = partition.crawl is not None and (
+                partition.crawl.state == CrawlState.RUNNING)
+            if generation == self._generation and still_running:
                 partition.fail_crawl(f"{type(exc).__name__}: {exc}")
                 self.publish(tenant_id)
 

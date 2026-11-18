@@ -85,7 +85,9 @@ try {
 
     Push-Location $frontend
     try {
-        if (-not (Test-Path 'node_modules')) {
+        # npm writes node_modules\.package-lock.json when an install finishes. Testing for
+        # the folder alone would keep a half-installed one left by an interrupted run.
+        if (-not (Test-Path 'node_modules\.package-lock.json')) {
             Write-Host 'Installing frontend dependencies...'
             npm ci --no-fund --no-audit
             if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }

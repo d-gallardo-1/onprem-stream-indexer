@@ -185,7 +185,7 @@ build elsewhere and import the images, or use internal mirrors.
 | Streamed events capped; rulings per crawl and per tenant capped; request bodies capped at 64 KB | `backend/app/config.py`, `backend/app/partition.py`, `frontend/nginx.conf` |
 | Bounded per-client queues | `backend/app/streaming/broadcaster.py` |
 | Report cells cannot run as formulas | `backend/app/workbook/layout.py` |
-| Exact dependency versions, lockfile for the frontend, monthly Dependabot | `backend/requirements.txt`, `frontend/package-lock.json`, `.github/dependabot.yml` |
+| Exact dependency versions, lockfile for the frontend, CI actions pinned by commit, base images pinned by digest, monthly Dependabot | `backend/requirements.txt`, `frontend/package-lock.json`, `.github/workflows/ci.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `.github/dependabot.yml` |
 
 ### Spreadsheet formula injection
 
