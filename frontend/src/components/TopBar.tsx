@@ -51,11 +51,14 @@ export function TopBar({ tenants, tenantId, onTenantChange, streamStatus, view, 
           Synthetic demo data
         </span>
 
-        <label className="ml-auto flex items-center gap-2 text-sm text-slate-300">
+        {/* On a narrow screen the selector takes its own full row and may shrink:
+            the longest tenant name is wider than a phone, and without min-w-0 the
+            select would push the page sideways. */}
+        <label className="flex w-full min-w-0 items-center gap-2 text-sm text-slate-300 sm:ml-auto sm:w-auto sm:max-w-md">
           <Building2 aria-hidden="true" className="h-4 w-4 text-slate-400" />
           <span>Tenant</span>
           <select
-            className="rounded-md border border-edge bg-obsidian px-2 py-1.5 text-sm text-slate-100"
+            className="min-w-0 flex-1 truncate rounded-md border border-edge bg-obsidian px-2 py-1.5 text-sm text-slate-100"
             value={tenantId ?? ''}
             disabled={tenants.length === 0}
             onChange={(event) => onTenantChange(event.target.value)}
