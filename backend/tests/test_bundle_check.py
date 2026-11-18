@@ -23,6 +23,9 @@ spec.loader.exec_module(check)
         ('"https://user:secret@evil.example.org/x"', "evil.example.org"),
         ('"https://[2001:db8::1]/x"', "[2001:db8::1]"),
         ('"//198.51.100.20/pixel.gif"', "198.51.100.20"),
+        ('new WebSocket("wss://live.example.com/socket")', "live.example.com"),
+        ('new WebSocket("ws://203.0.113.9:8080/")', "203.0.113.9"),
+        ('"ftp://files.example.org/archive.zip"', "files.example.org"),
     ],
 )
 def test_every_form_of_external_url_is_reported(text, host):

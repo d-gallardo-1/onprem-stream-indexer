@@ -2,7 +2,7 @@
 
 The UI must work with no network access: no CDN, no web fonts, no external API.
 This reads the production bundle in ``frontend/dist`` and lists every host it
-names in an absolute URL: a domain name, a single-label name, an IPv4 or IPv6
+names in an absolute URL of any scheme: a domain name, a single-label name, an IPv4 or IPv6
 literal, with or without credentials and a port. A short allow-list covers
 strings that libraries embed but never request: XML namespaces and the links
 inside licence and error messages.
@@ -18,9 +18,12 @@ from pathlib import Path
 
 #: Characters that end a URL inside source text.
 _REST = r"""[^\s"'`)<>\\]*"""
-#: An absolute URL with a scheme. Any host counts, also behind ``user:password@``.
+#: An absolute URL with any scheme: http and https, and also ws, wss, ftp and the
+#: rest, since a WebSocket to another origin breaks the offline promise just the
+#: same. Any host counts, also behind ``user:password@``.
 SCHEME_URL = re.compile(
-    r"""https?://(?:[^\s/"'`)<>\\@]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9][A-Za-z0-9.-]*)""" + _REST
+    r"""(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*://(?:[^\s/"'`)<>\\@]*@)?"""
+    r"""(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9][A-Za-z0-9.-]*)""" + _REST
 )
 #: A protocol-relative URL. Without a scheme, ``//`` is also a comment or part of
 #: a path, so only a dotted host or an IPv4 literal is taken as a URL.
