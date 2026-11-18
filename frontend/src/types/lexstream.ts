@@ -134,7 +134,7 @@ export interface CrawlRun {
   run_id: string;
   tenant_id: string;
   source_portal: string;
-  state: 'RUNNING' | 'COMPLETED';
+  state: 'RUNNING' | 'COMPLETED' | 'FAILED';
   started_at: string;
   finished_at: string | null;
   planned_rulings: number;

@@ -179,10 +179,12 @@ crawl).
 | POST | `/ingest/reset` | Restore the default corpus of every tenant and notify clients |
 | GET | `/export/analytics-xlsx?tenant_id=&q=&authority=&outcome=` | Report of the query as `.xlsx` |
 
-Limits: `q` is at most 120 characters, a search stream sends at most 100 rulings
-(`LEXSTREAM_MAX_STREAM_EVENTS`), a crawl adds 1 to 5 rulings and a tenant holds at most
-60 crawled rulings. `source_portal` must be one of four fictional names; a URL is
-rejected with `422`.
+Limits: `q` is at most 120 characters, a crawl adds 1 to 5 rulings and a tenant holds at
+most 60 crawled rulings, so 70 in all. A search stream sends at most 100 rulings
+(`LEXSTREAM_MAX_STREAM_EVENTS`); with 70 rulings per tenant that ceiling is defensive and
+is only reached if the variable is lowered. `source_portal` must be one of four fictional
+names; a URL is rejected with `422`. A crawl that stops on an error is marked `FAILED`
+and does not block the next one.
 
 Watch a search arrive from a terminal:
 
@@ -270,10 +272,10 @@ the UI, both streams through Nginx, partitioning, a crawl round trip and the rep
   production worker would drive a headless browser such as Playwright against sources
   the organisation is licensed to use; that is described in the docs, not implemented,
   and it is not a dependency of this repository.
-- **The estimator is a teaching model.** It is a smoothed rate over a corpus of twenty
-  invented rulings per deployment. It is noisy by construction, says so through its
-  sample size, and describes no real court or regulator. It must not be used to assess
-  a real matter.
+- **The estimator is a teaching model.** It is a smoothed rate over one tenant's
+  rulings: ten invented rulings by default, and at most seventy after crawls. It is
+  noisy by construction, says so through its sample size, and describes no real court or
+  regulator. It must not be used to assess a real matter.
 - **State is in memory** and is lost on restart, including crawled rulings. Memory is
   bounded: 10 default and at most 60 crawled rulings per tenant.
 - **One worker.** Two workers would hold two different sets of partitions.

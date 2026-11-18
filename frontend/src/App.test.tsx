@@ -134,6 +134,26 @@ describe('App', () => {
     expect(tenantSelect().disabled).toBe(true);
   });
 
+  it('keeps the working screen when a later reload of the tenant list fails', async () => {
+    let rulings = 10;
+    vi.mocked(useTenantStream).mockImplementation((tenantId) => ({
+      snapshot: tenantId ? makeSnapshot(DIRECTORY.tenants[0].tenant, rulings) : null,
+      status: 'CONNECTED',
+    }));
+    const view = render(<App />);
+    await searchBox();
+    vi.mocked(api.directory).mockRejectedValue(new Error('HTTP 502'));
+
+    rulings = 11; // a crawl indexed a ruling: the directory is reloaded and fails
+    view.rerender(<App />);
+    await waitFor(() => expect(api.directory).toHaveBeenCalledTimes(2));
+
+    expect(await searchBox()).toBeTruthy();
+    expect(tenantSelect().disabled).toBe(false);
+    expect(tenantSelect().options).toHaveLength(2);
+    expect(screen.queryByText(/Cannot load the tenant list/)).toBeNull();
+  });
+
   it('states in the footer that the data is invented and the selector is not a login', () => {
     streamAnswers('CONNECTED');
     render(<App />);

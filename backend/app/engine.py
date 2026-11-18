@@ -73,10 +73,23 @@ class LexStreamEngine:
         deterministic sequence of synthetic rulings.
         """
         partition = self.partition(tenant_id)
-        run = partition.crawl
-        generation = self._generation
-        if run is None:
+        if partition.crawl is None:
             return
+        generation = self._generation
+        try:
+            await self._play_crawl(partition, generation, stage_delay)
+        except Exception as exc:  # noqa: BLE001 - any failure must release the tenant
+            # Left as RUNNING, the run would answer 409 to every later crawl of
+            # this tenant. Cancellation (reset, shutdown) is not caught here.
+            if generation == self._generation:
+                partition.fail_crawl(f"{type(exc).__name__}: {exc}")
+                self.publish(tenant_id)
+
+    async def _play_crawl(self, partition: TenantPartition, generation: int,
+                          stage_delay: float) -> None:
+        tenant_id = partition.tenant_id
+        run = partition.crawl
+        assert run is not None
 
         async def advance() -> bool:
             await asyncio.sleep(stage_delay)

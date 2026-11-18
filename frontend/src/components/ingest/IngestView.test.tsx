@@ -73,6 +73,13 @@ describe('IngestView', () => {
     expect(runButton().disabled).toBe(false);
   });
 
+  it('shows a failed run as failed and allows a new one', () => {
+    renderView(makeCrawl({ state: 'FAILED', finished_at: '2026-01-05T09:00:03Z' }));
+
+    expect(screen.getByRole('status').textContent).toBe('Failed');
+    expect(runButton().disabled).toBe(false);
+  });
+
   it('shows the refusal when the backend answers that a crawl is already running', async () => {
     vi.spyOn(api, 'startCrawl').mockRejectedValue(
       new Error('Crawl RUN-LAW-0001 is still running for this tenant.'));

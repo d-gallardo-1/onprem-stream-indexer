@@ -45,6 +45,12 @@ export class FakeEventSource {
     for (const listener of this.listeners.get(type) ?? []) listener(event);
   }
 
+  /** Delivers `data` as it is, so a test can send a payload that is not valid JSON. */
+  emitRaw(type: string, data: string): void {
+    const event = { data } as MessageEvent<string>;
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
+  }
+
   /** `gaveUp` models an HTTP error, after which the browser stops reconnecting. */
   fail(gaveUp: boolean): void {
     this.readyState = gaveUp ? FakeEventSource.CLOSED : FakeEventSource.CONNECTING;

@@ -23,11 +23,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function Harness({ tenant = LAW, rulings = 10 }: { tenant?: Tenant; rulings?: number }) {
+function Harness({ tenant = LAW, rulings = 10, connected = true }: {
+  tenant?: Tenant; rulings?: number; connected?: boolean;
+}) {
   const [query, setQuery] = useState<SearchQuery>(EMPTY_QUERY);
   return (
     <SearchView snapshot={makeSnapshot(tenant, rulings)} outcomes={DIRECTORY.outcomes}
-      matters={DIRECTORY.matters} query={query} onQueryChange={setQuery} />
+      matters={DIRECTORY.matters} query={query} onQueryChange={setQuery} connected={connected} />
   );
 }
 
@@ -85,6 +87,21 @@ describe('SearchView', () => {
     rerender(<Harness rulings={13} />);
 
     await waitFor(() => expect(search.mock.calls.length).toBe(calls + 1));
+  });
+
+  it('runs the search and the estimate again when the stream is back', async () => {
+    search.mockRejectedValue(new Error('HTTP 502'));
+    estimate.mockRejectedValue(new Error('HTTP 502'));
+    const { rerender } = render(<Harness connected={false} />);
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2)); // search and estimate
+    search.mockResolvedValue(makeSearch());
+    estimate.mockResolvedValue(makeEstimate());
+
+    rerender(<Harness connected />);
+
+    expect(await screen.findByText('Corvane Freight v Lumestra Packaging')).toBeTruthy();
+    expect((await screen.findByTestId('estimate')).textContent).toBe('47.5%');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('streams rulings progressively with their arrival time, then the analytics', async () => {
@@ -168,5 +185,6 @@ describe('SearchView', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'x' } });
 
     expect((await screen.findByRole('alert')).textContent).toBe('backend unavailable');
+    expect(screen.getByText('Search failed')).toBeTruthy();
   });
 });

@@ -79,10 +79,15 @@ def test_documents_are_spaced_by_the_configured_delay(engine):
     frames, seconds = asyncio.run(collect())
     elapsed = [data["elapsed_ms"] for name, data in sse_events("".join(frames)) if name == "result"]
 
-    assert seconds >= 0.09 and elapsed == sorted(elapsed) and elapsed[-1] >= 80
+    # Three pauses of 30 ms. The bounds leave room for coarse timers (about 15 ms on
+    # Windows) that may fire early; they still fail if the delay is not applied at all.
+    assert seconds >= 0.06 and elapsed == sorted(elapsed) and elapsed[-1] >= 50
 
 
 def test_delay_comes_from_the_environment_and_is_clamped(monkeypatch):
+    for name in ("LEXSTREAM_STREAM_DELAY_MS", "LEXSTREAM_CRAWL_STAGE_DELAY_MS",
+                 "LEXSTREAM_MAX_STREAM_EVENTS"):
+        monkeypatch.delenv(name, raising=False)  # the developer's shell must not decide
     assert load_settings().stream_delay == 0.12
     monkeypatch.setenv("LEXSTREAM_STREAM_DELAY_MS", "0")
     monkeypatch.setenv("LEXSTREAM_CRAWL_STAGE_DELAY_MS", "nan")

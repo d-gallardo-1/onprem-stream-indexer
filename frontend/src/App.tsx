@@ -14,8 +14,13 @@ export default function App() {
   const [view, setView] = useState<ViewId>('search');
   const [query, setQuery] = useState<SearchQuery>(EMPTY_QUERY);
   const { snapshot, status } = useTenantStream(tenantId);
-  // Reloaded when the selected tenant's corpus changes, so its counters stay current.
-  const directory = useFetched(() => api.directory(), [snapshot?.corpus.rulings]);
+  const connected = status === 'CONNECTED';
+  // Reloaded when the selected tenant's corpus changes, so its counters stay
+  // current, and when the stream comes back. A reload that fails keeps the list
+  // already on screen: one bad response must not take the whole UI away.
+  const directory = useFetched(() => api.directory(), [snapshot?.corpus.rulings, connected], {
+    keepDataOnError: true,
+  });
   const tenants = directory.data?.tenants.map((entry) => entry.tenant) ?? [];
   const offline = status === 'DISCONNECTED';
 
@@ -50,7 +55,7 @@ export default function App() {
           </p>
         )}
 
-        {snapshot && status !== 'CONNECTED' && (
+        {snapshot && !connected && (
           <p role="alert" className="rounded-md border border-warn/50 bg-warn/10 px-3 py-2 text-sm text-warn">
             {offline
               ? 'Live connection lost. The data below is the last snapshot received and may be out of date; controls are disabled until the stream is back.'
@@ -65,7 +70,8 @@ export default function App() {
             className="m-0 min-w-0 border-0 p-0">
             {view === 'search' && (
               <SearchView snapshot={snapshot} outcomes={directory.data.outcomes}
-                matters={directory.data.matters} query={query} onQueryChange={setQuery} />
+                matters={directory.data.matters} query={query} onQueryChange={setQuery}
+                connected={connected} />
             )}
             {view === 'ingest' && (
               <IngestView snapshot={snapshot} portals={directory.data.source_portals} />

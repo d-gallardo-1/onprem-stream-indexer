@@ -74,7 +74,7 @@ A snapshot search runs the query in the tenant's index and computes the analytic
 every match. A stream search resolves the same matches and then sends one `result` event
 per ruling, pausing `LEXSTREAM_STREAM_DELAY_MS` between them, followed by one
 `analytics_summary` event with the totals and the same analytics. The pause exists so the
-progressive delivery is visible on a corpus of twenty rulings; it is zero in tests.
+progressive delivery is visible on a tenant's ten default rulings; it is zero in tests.
 
 The stream is finite. A browser `EventSource` treats the end of a stream as a dropped
 connection and asks again, which would replay every ruling, so the client closes the
@@ -86,7 +86,9 @@ A browser `EventSource` can only issue `GET`, so starting a crawl and watching i
 requests. `POST /ingest/simulate-crawl` validates the body, registers the run, records
 the first stage and answers `202` with the run id. The remaining stages are played by a
 background task and delivered on `GET /ingest/stream`, the tenant's state stream. A
-second crawl for a tenant with one running is refused with `409`.
+second crawl for a tenant with one running is refused with `409`. If the task stops on
+an error, the run is marked `FAILED`, the failure is logged and published, and the
+tenant can start a new crawl; a run is never left `RUNNING` by a crash.
 
 `source_portal` is an enumeration of four fictional portal names. It is never a free
 string or a URL, and the backend makes no network request: a test replaces the socket
@@ -173,26 +175,31 @@ build elsewhere and import the images, or use internal mirrors.
 | One scoping layer; tenant resolved before any work; `404` when unknown | `backend/app/tenancy.py`, `backend/app/engine.py` |
 | Port bound to `127.0.0.1` only | `docker-compose.yml` |
 | Backend not published to the host | `docker-compose.yml` |
-| Containers run as non-root, read-only root filesystem (size-capped in-memory `/tmp` only), all capabilities dropped, `no-new-privileges` | `docker-compose.yml`, Dockerfiles |
+| Containers run as non-root, read-only root filesystem (size-capped in-memory `/tmp` only), all capabilities dropped, `no-new-privileges` | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` |
 | Health check defined once | `backend/Dockerfile` |
 | Content Security Policy, `X-Frame-Options`, `nosniff`, `Referrer-Policy` | `frontend/nginx.conf` |
 | No inline styles or scripts in the page (bars are SVG), so the CSP needs no `unsafe-inline` | `frontend/src/components/shared/Bar.tsx` |
-| Same-origin API through the proxy, so no CORS is enabled | `frontend/nginx.conf`, `vite.config.ts` |
+| Same-origin API through the proxy, so no CORS is enabled | `frontend/nginx.conf`, `frontend/vite.config.ts` |
 | Parameters validated by pattern, enumeration and length; `q` capped at 120 characters; unknown body fields rejected | `backend/app/api/schemas.py` |
 | Portal restricted to a fixed list; no outbound request anywhere in the backend | `backend/app/models.py`, `backend/tests/test_crawl.py` |
 | Streamed events capped; rulings per crawl and per tenant capped; request bodies capped at 64 KB | `backend/app/config.py`, `backend/app/partition.py`, `frontend/nginx.conf` |
 | Bounded per-client queues | `backend/app/streaming/broadcaster.py` |
 | Report cells cannot run as formulas | `backend/app/workbook/layout.py` |
-| Exact dependency versions, lockfile for the frontend, monthly Dependabot | `requirements.txt`, `package-lock.json`, `.github/dependabot.yml` |
+| Exact dependency versions, lockfile for the frontend, monthly Dependabot | `backend/requirements.txt`, `frontend/package-lock.json`, `.github/dependabot.yml` |
 
 ### Spreadsheet formula injection
 
 Titles and summaries are text that ends up in a workbook. A spreadsheet program treats a
 cell that starts with `=`, `+`, `-` or `@` as a formula, which can exfiltrate data or
 run a command when the file is opened. Every text cell goes through `safe_cell`, which
-prefixes such text with an apostrophe so it is displayed, not evaluated. Numbers are
+prefixes such text with an apostrophe so it is displayed, not evaluated. Leading spaces,
+tabs and carriage returns do not hide a formula character from that check. Numbers are
 written as numbers. The corpus here is fixed, so the risk is theoretical today; the
 control is in place because a real ingestion path would carry untrusted text.
+
+The same function drops control characters that a workbook cannot store. The report
+repeats the caller's query in its heading, and without this a query holding such a
+character made the export fail with a `500` instead of producing a report.
 
 ## Known gaps
 

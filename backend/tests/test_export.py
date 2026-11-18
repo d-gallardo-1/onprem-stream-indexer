@@ -78,7 +78,20 @@ def test_an_empty_result_still_gives_a_workbook(client):
     assert "0 ruling(s)" in workbook["Results"]["A2"].value
 
 
-@pytest.mark.parametrize("prefix", ["=", "+", "-", "@"])
+CONTROL_QUERIES = [chr(1), "costs" + chr(11), chr(31) + chr(0)]
+
+
+@pytest.mark.parametrize("query", CONTROL_QUERIES)
+def test_a_control_character_in_the_query_does_not_break_the_report(client, query):
+    """Such characters cannot be stored in a cell; they are dropped, not answered with 500."""
+    response = client.get(EXPORT, params={"tenant_id": LAW, "q": query})
+
+    assert response.status_code == 200
+    note = load_workbook(io.BytesIO(response.content))["Results"]["A2"].value
+    assert note.startswith("Query: ") and not any(ord(ch) < 9 for ch in note)
+
+
+@pytest.mark.parametrize("prefix", ["=", "+", "-", "@", chr(9) + "=", chr(13) + "=", "  ="])
 def test_text_that_starts_like_a_formula_is_neutralised(prefix):
     assert safe_cell(f"{prefix}SUM(A1:A9)") == f"'{prefix}SUM(A1:A9)"
 

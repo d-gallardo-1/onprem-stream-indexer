@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -13,15 +14,20 @@ _FORMULA_PREFIXES = ("=", "+", "-", "@")
 
 
 def safe_cell(value: object) -> object:
-    """Stop a spreadsheet program from running text as a formula.
+    """Make text safe to store in a cell and stop it from running as a formula.
 
-    Titles and summaries are text. A text cell that starts with a formula
-    character is prefixed with an apostrophe, so it is shown, not evaluated.
-    Numbers are passed through untouched.
+    Control characters that a workbook cannot hold are dropped; without this a
+    query such as a single U+0001 would make the export fail. Text whose first
+    visible character is a formula character is then prefixed with an
+    apostrophe, so it is shown, not evaluated; leading spaces, tabs and
+    carriage returns do not hide it. Numbers are passed through untouched.
     """
-    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
-        return "'" + value
-    return value
+    if not isinstance(value, str):
+        return value
+    text = ILLEGAL_CHARACTERS_RE.sub("", value)
+    if text.lstrip().startswith(_FORMULA_PREFIXES):
+        return "'" + text
+    return text
 
 
 def write_header(sheet: Worksheet, row: int, columns: tuple[str, ...] | list[str]) -> None:

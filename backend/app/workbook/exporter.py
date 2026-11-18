@@ -8,7 +8,7 @@ from openpyxl import Workbook
 
 from ..analytics.models import Analytics
 from ..models import Ruling, Tenant
-from .layout import SYNTHETIC_NOTE, append_row, write_header
+from .layout import SYNTHETIC_NOTE, append_row, safe_cell, write_header
 
 RESULT_COLUMNS: tuple[str, ...] = (
     "Docket ID", "Title", "Authority", "Matter", "Decision date", "Outcome",
@@ -24,8 +24,9 @@ def _results_sheet(workbook: Workbook, tenant: Tenant, description: str,
     sheet.title = "Results"
     sheet.cell(row=1, column=1, value=f"LexStream On-Prem report for {tenant.name} "
                                       f"({tenant.tenant_id})")
-    sheet.cell(row=2, column=1,
-               value=f"{description} | {len(rulings)} ruling(s) | {SYNTHETIC_NOTE}")
+    # The description repeats the caller's query, so it goes through safe_cell.
+    note = f"{description} | {len(rulings)} ruling(s) | {SYNTHETIC_NOTE}"
+    sheet.cell(row=2, column=1, value=safe_cell(note))
     write_header(sheet, HEADER_ROW, RESULT_COLUMNS)
     for ruling in rulings:
         append_row(sheet, [

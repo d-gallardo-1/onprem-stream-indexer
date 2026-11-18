@@ -2,7 +2,7 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource } from '../test/fakeEventSource';
 import { makeHit, makeSummary } from '../test/fixtures';
-import { useSearchStream } from './useSearchStream';
+import { STALL_MS, useSearchStream } from './useSearchStream';
 
 const URL = '/api/v1/search/stream?tenant_id=TNT-LAW-01';
 let now = 0;
@@ -99,6 +99,54 @@ describe('useSearchStream', () => {
     expect(first.readyState).toBe(FakeEventSource.CLOSED);
     expect(hook.current.state.hits).toEqual([]);
     expect(FakeEventSource.latest.url).toBe(`${URL}&q=costs`);
+  });
+
+  it('gives up on a stream that goes silent, and each ruling restarts the wait', () => {
+    vi.useFakeTimers();
+    try {
+      const { result: hook } = renderHook(() => useSearchStream());
+      act(() => hook.current.start(URL));
+      const source = FakeEventSource.latest;
+
+      act(() => vi.advanceTimersByTime(STALL_MS - 1));
+      emit('result', result(1));
+      act(() => vi.advanceTimersByTime(STALL_MS - 1));
+      expect(hook.current.state.status).toBe('streaming');
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(hook.current.state.status).toBe('error');
+      expect(hook.current.state.hits).toHaveLength(1);
+      expect(source.readyState).toBe(FakeEventSource.CLOSED);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not time out a stream that already delivered its summary', () => {
+    vi.useFakeTimers();
+    try {
+      const { result: hook } = renderHook(() => useSearchStream());
+      act(() => hook.current.start(URL));
+      emit('analytics_summary', makeSummary(0));
+
+      act(() => vi.advanceTimersByTime(STALL_MS * 2));
+      expect(hook.current.state.status).toBe('done');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a malformed event instead of staying in streaming', () => {
+    const { result: hook } = renderHook(() => useSearchStream());
+    act(() => hook.current.start(URL));
+    const source = FakeEventSource.latest;
+    emit('result', result(1));
+
+    act(() => source.emitRaw('analytics_summary', '{"total": 2, "analytics":'));
+
+    expect(hook.current.state.status).toBe('error');
+    expect(hook.current.state.hits).toHaveLength(1);
+    expect(source.readyState).toBe(FakeEventSource.CLOSED);
   });
 
   it('cancel and unmount close the source', () => {

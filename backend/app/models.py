@@ -37,6 +37,7 @@ class CrawlStage(str, Enum):
 class CrawlState(str, Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class SourcePortal(str, Enum):

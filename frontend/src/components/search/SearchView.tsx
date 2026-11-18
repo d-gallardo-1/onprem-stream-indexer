@@ -16,6 +16,8 @@ interface Props {
   matters: LabelledCode[];
   query: SearchQuery;
   onQueryChange: (query: SearchQuery) => void;
+  /** Whether the state stream is live. Requests are run again when it comes back. */
+  connected: boolean;
 }
 
 /**
@@ -23,14 +25,16 @@ interface Props {
  * an ordinary request, or progressively over SSE when the stream button is
  * pressed. Both run inside the partition of the selected tenant.
  */
-export function SearchView({ snapshot, outcomes, matters, query, onQueryChange }: Props) {
+export function SearchView({ snapshot, outcomes, matters, query, onQueryChange, connected }: Props) {
   const tenantId = snapshot.tenant.tenant_id;
   const corpusRulings = snapshot.corpus.rulings;
   const { state: stream, start, cancel } = useSearchStream();
   const fetched = useFetched(
     (signal) => api.searchSnapshot(tenantId, query, signal),
-    [tenantId, query, corpusRulings],
-    SEARCH_DEBOUNCE_MS,
+    // `connected` is a dependency so a search that failed during an outage is
+    // repeated when the backend returns, instead of staying on its error.
+    [tenantId, query, corpusRulings, connected],
+    { delayMs: SEARCH_DEBOUNCE_MS },
   );
 
   // A streamed list belongs to the filters it was started with.
@@ -43,6 +47,7 @@ export function SearchView({ snapshot, outcomes, matters, query, onQueryChange }
     : (fetched.data?.results ?? []).map((hit) => ({ hit }));
 
   let status = fetched.data ? `${fetched.data.total} ruling(s)` : 'Searching…';
+  if (fetched.error) status = 'Search failed';
   if (stream.status === 'streaming') {
     status = `Streaming: ${stream.hits.length} of ${stream.expected ?? '…'} received`;
   } else if (stream.status === 'done' && stream.summary) {
@@ -91,7 +96,7 @@ export function SearchView({ snapshot, outcomes, matters, query, onQueryChange }
           )}
           <EstimatePanel tenantId={tenantId} authorities={snapshot.authorities} outcomes={outcomes}
             matters={matters.filter((matter) => snapshot.matters.includes(matter.code))}
-            corpusRulings={corpusRulings} />
+            corpusRulings={corpusRulings} connected={connected} />
         </div>
       </div>
     </div>

@@ -108,6 +108,13 @@ class TenantPartition:
         self.log("CRAWL_COMPLETED",
                  f"{self.crawl.run_id} indexed {self.crawl.planned_rulings} new ruling(s)")
 
+    def fail_crawl(self, reason: str) -> None:
+        """Close a run that could not finish, so it does not block the next one."""
+        assert self.crawl is not None
+        self.crawl = self.crawl.model_copy(
+            update={"state": CrawlState.FAILED, "finished_at": self._clock()})
+        self.log("CRAWL_FAILED", f"{self.crawl.run_id} stopped: {reason}")
+
     # ---- snapshot -------------------------------------------------------------
 
     def snapshot(self, sequence: int) -> TenantSnapshot:

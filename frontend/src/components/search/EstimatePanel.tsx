@@ -13,6 +13,8 @@ interface Props {
   outcomes: Outcome[];
   /** Number of rulings in the partition; the estimate is recomputed when it changes. */
   corpusRulings: number;
+  /** Whether the state stream is live; the estimate is asked again when it comes back. */
+  connected: boolean;
 }
 
 const FIELD = 'rounded-md border border-edge bg-obsidian px-2 py-1.5 text-sm text-slate-100';
@@ -23,11 +25,11 @@ const CONFIDENCE: Record<Estimate['confidence'], string> = {
 };
 
 /** Illustrative estimate with every step of the calculation on screen. */
-export function EstimatePanel({ tenantId, authorities, matters, outcomes, corpusRulings }: Props) {
+export function EstimatePanel({ tenantId, authorities, matters, outcomes, corpusRulings, connected }: Props) {
   const [input, setInput] = useState<EstimateInput>({ authority: '', matter: '', outcome: 'UPHELD' });
   const { data, error } = useFetched(
     (signal) => api.estimate(tenantId, input, signal),
-    [tenantId, input, corpusRulings],
+    [tenantId, input, corpusRulings, connected],
   );
   const set = (field: keyof EstimateInput) => (value: string) =>
     setInput((current) => ({ ...current, [field]: value }));
