@@ -1,0 +1,46 @@
+name: onprem-stream-indexer
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      LEXSTREAM_STREAM_DELAY_MS: "120"
+      LEXSTREAM_CRAWL_STAGE_DELAY_MS: "700"
+    # Not published to the host: only the frontend proxy can reach it.
+    expose:
+      - "8000"
+    # The health check is defined once, in backend/Dockerfile (HEALTHCHECK).
+    # The frontend below waits for it through "condition: service_healthy".
+    read_only: true
+    # The spreadsheet library writes temporary files while it builds a workbook,
+    # so the read-only container still needs a writable, in-memory /tmp. It is
+    # capped: without a size, a tmpfs may grow to half of the host's memory.
+    # A report is at most 200 rows, a few tens of kilobytes, so 64 MB is ample.
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Bound to localhost only. The API has no authentication and the
+    # tenant is chosen by the caller,
+    # so do not publish this port to a network without adding access control.
+    ports:
+      - "127.0.0.1:8082:8080"
+    read_only: true
+    # Nginx keeps its pid file and temporary request bodies here. Request
+    # bodies are limited to 64 KB (client_max_body_size), so 32 MB is ample.
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
