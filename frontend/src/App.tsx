@@ -4,7 +4,7 @@ import { PartitionView } from './components/partition/PartitionView';
 import { SearchView } from './components/search/SearchView';
 import { TopBar } from './components/TopBar';
 import { useFetched } from './hooks/useFetched';
-import { useTenantStream } from './hooks/useTenantStream';
+import { useReconnects, useTenantStream } from './hooks/useTenantStream';
 import { api, EMPTY_QUERY } from './lib/api';
 import type { SearchQuery, ViewId } from './types/lexstream';
 
@@ -15,10 +15,11 @@ export default function App() {
   const [query, setQuery] = useState<SearchQuery>(EMPTY_QUERY);
   const { snapshot, status } = useTenantStream(tenantId);
   const connected = status === 'CONNECTED';
+  const reconnects = useReconnects(connected, tenantId);
   // Reloaded when the selected tenant's corpus changes, so its counters stay
   // current, and when the stream comes back. A reload that fails keeps the list
   // already on screen: one bad response must not take the whole UI away.
-  const directory = useFetched(() => api.directory(), [snapshot?.corpus.rulings, connected], {
+  const directory = useFetched(() => api.directory(), [snapshot?.corpus.rulings, reconnects], {
     keepDataOnError: true,
   });
   const tenants = directory.data?.tenants.map((entry) => entry.tenant) ?? [];
@@ -71,7 +72,7 @@ export default function App() {
             {view === 'search' && (
               <SearchView snapshot={snapshot} outcomes={directory.data.outcomes}
                 matters={directory.data.matters} query={query} onQueryChange={setQuery}
-                connected={connected} />
+                reconnects={reconnects} />
             )}
             {view === 'ingest' && (
               <IngestView snapshot={snapshot} portals={directory.data.source_portals} />

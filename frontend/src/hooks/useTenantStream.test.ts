@@ -2,7 +2,7 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource } from '../test/fakeEventSource';
 import { IND as BETA, LAW as ALPHA, makeSnapshot } from '../test/fixtures';
-import { RETRY_MS, STALE_MS, useTenantStream } from './useTenantStream';
+import { RETRY_MS, STALE_MS, useReconnects, useTenantStream } from './useTenantStream';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -121,5 +121,34 @@ describe('useTenantStream', () => {
 
     expect(source.readyState).toBe(FakeEventSource.CLOSED);
     expect(FakeEventSource.instances).toHaveLength(1);
+  });
+});
+
+describe('useReconnects', () => {
+  const run = (connected: boolean, key: string | null = 'TNT-LAW-01') =>
+    renderHook(({ up, id }) => useReconnects(up, id), { initialProps: { up: connected, id: key } });
+
+  it('does not count the first connection or a drop', () => {
+    const { result, rerender } = run(false);
+    rerender({ up: true, id: 'TNT-LAW-01' });
+    expect(result.current).toBe(0);
+
+    rerender({ up: false, id: 'TNT-LAW-01' });
+    expect(result.current).toBe(0); // losing the stream must not trigger a reload
+  });
+
+  it('counts each return of a stream that had been up', () => {
+    const { result, rerender } = run(true);
+    for (const up of [false, true, false, true]) rerender({ up, id: 'TNT-LAW-01' });
+
+    expect(result.current).toBe(2);
+  });
+
+  it('starts over when the tenant changes, so a switch is not a reconnect', () => {
+    const { result, rerender } = run(true);
+    rerender({ up: false, id: 'TNT-IND-02' }); // the new tenant's stream is still opening
+    rerender({ up: true, id: 'TNT-IND-02' });
+
+    expect(result.current).toBe(0);
   });
 });

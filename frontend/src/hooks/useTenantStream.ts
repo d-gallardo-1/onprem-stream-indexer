@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import type { StreamStatus, TenantSnapshot } from '../types/lexstream';
 
@@ -109,4 +109,29 @@ export function useTenantStream(tenantId: string | null): {
   }, [tenantId]);
 
   return { snapshot, status };
+}
+
+/**
+ * Counts how many times the stream came back after having been up. Requests
+ * list it as a dependency to be repeated once the backend returns.
+ *
+ * It deliberately ignores the first connection, a drop, and a change of `key`
+ * (the tenant). A drop must not trigger a request: that request would fail and
+ * wipe the results the offline banner says are still on screen.
+ */
+export function useReconnects(connected: boolean, key: string | null): number {
+  const [count, setCount] = useState(0);
+  const seen = useRef<{ key: string | null; state: 'never' | 'up' | 'down' }>({ key, state: 'never' });
+
+  useEffect(() => {
+    if (seen.current.key !== key) seen.current = { key, state: 'never' };
+    if (connected) {
+      if (seen.current.state === 'down') setCount((value) => value + 1);
+      seen.current.state = 'up';
+    } else if (seen.current.state === 'up') {
+      seen.current.state = 'down';
+    }
+  }, [connected, key]);
+
+  return count;
 }

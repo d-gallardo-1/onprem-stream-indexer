@@ -16,8 +16,8 @@ interface Props {
   matters: LabelledCode[];
   query: SearchQuery;
   onQueryChange: (query: SearchQuery) => void;
-  /** Whether the state stream is live. Requests are run again when it comes back. */
-  connected: boolean;
+  /** Times the state stream came back; requests are run again on each return. */
+  reconnects: number;
 }
 
 /**
@@ -25,15 +25,16 @@ interface Props {
  * an ordinary request, or progressively over SSE when the stream button is
  * pressed. Both run inside the partition of the selected tenant.
  */
-export function SearchView({ snapshot, outcomes, matters, query, onQueryChange, connected }: Props) {
+export function SearchView({ snapshot, outcomes, matters, query, onQueryChange, reconnects }: Props) {
   const tenantId = snapshot.tenant.tenant_id;
   const corpusRulings = snapshot.corpus.rulings;
   const { state: stream, start, cancel } = useSearchStream();
   const fetched = useFetched(
     (signal) => api.searchSnapshot(tenantId, query, signal),
-    // `connected` is a dependency so a search that failed during an outage is
-    // repeated when the backend returns, instead of staying on its error.
-    [tenantId, query, corpusRulings, connected],
+    // `reconnects` is a dependency so a search that failed during an outage is
+    // repeated when the backend returns. Losing the stream changes nothing here:
+    // the results already on screen stay.
+    [tenantId, query, corpusRulings, reconnects],
     { delayMs: SEARCH_DEBOUNCE_MS },
   );
 
@@ -96,7 +97,7 @@ export function SearchView({ snapshot, outcomes, matters, query, onQueryChange, 
           )}
           <EstimatePanel tenantId={tenantId} authorities={snapshot.authorities} outcomes={outcomes}
             matters={matters.filter((matter) => snapshot.matters.includes(matter.code))}
-            corpusRulings={corpusRulings} connected={connected} />
+            corpusRulings={corpusRulings} reconnects={reconnects} />
         </div>
       </div>
     </div>

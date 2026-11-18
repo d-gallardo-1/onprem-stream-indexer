@@ -7,7 +7,10 @@ import { FakeEventSource } from './test/fakeEventSource';
 import { DIRECTORY, IND, makeEstimate, makeSearch, makeSnapshot } from './test/fixtures';
 import type { StreamStatus, TenantSnapshot } from './types/lexstream';
 
-vi.mock('./hooks/useTenantStream', () => ({ useTenantStream: vi.fn() }));
+vi.mock('./hooks/useTenantStream', async (original) => ({
+  ...(await original<typeof import('./hooks/useTenantStream')>()),
+  useTenantStream: vi.fn(),
+}));
 
 afterEach(() => {
   cleanup();
@@ -152,6 +155,30 @@ describe('App', () => {
     expect(tenantSelect().disabled).toBe(false);
     expect(tenantSelect().options).toHaveLength(2);
     expect(screen.queryByText(/Cannot load the tenant list/)).toBeNull();
+  });
+
+  it('keeps the results on screen when the stream drops and the backend is down', async () => {
+    let status: StreamStatus = 'CONNECTED';
+    vi.mocked(useTenantStream).mockImplementation((tenantId) => ({
+      snapshot: tenantId ? makeSnapshot(DIRECTORY.tenants[0].tenant) : null,
+      status,
+    }));
+    const view = render(<App />);
+    expect(await screen.findByText('Corvane Freight v Lumestra Packaging')).toBeTruthy();
+    expect((await screen.findByTestId('estimate')).textContent).toBe('47.5%');
+    const calls = vi.mocked(api.searchSnapshot).mock.calls.length;
+    for (const call of [api.searchSnapshot, api.estimate, api.directory]) {
+      vi.mocked(call).mockRejectedValue(new Error('HTTP 502'));
+    }
+
+    status = 'DISCONNECTED';
+    view.rerender(<App />);
+    await new Promise((resolve) => setTimeout(resolve, 400)); // longer than the search debounce
+
+    expect(screen.getByRole('alert').textContent).toContain('last snapshot received');
+    expect(screen.getByText('Corvane Freight v Lumestra Packaging')).toBeTruthy();
+    expect(screen.getByTestId('estimate').textContent).toBe('47.5%');
+    expect(vi.mocked(api.searchSnapshot).mock.calls.length).toBe(calls);
   });
 
   it('states in the footer that the data is invented and the selector is not a login', () => {
