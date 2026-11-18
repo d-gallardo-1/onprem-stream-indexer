@@ -20,9 +20,11 @@ from pathlib import Path
 _REST = r"""[^\s"'`)<>\\]*"""
 #: An absolute URL with any scheme: http and https, and also ws, wss, ftp and the
 #: rest, since a WebSocket to another origin breaks the offline promise just the
-#: same. Any host counts, also behind ``user:password@``.
+#: same. Any host counts, also behind ``user:password@``. The pattern is not
+#: anchored on what precedes the scheme: text glued in front of it (a digit, a
+#: dash, an escape) must not hide the host, so it may match from mid-word.
 SCHEME_URL = re.compile(
-    r"""(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*://(?:[^\s/"'`)<>\\@]*@)?"""
+    r"""[A-Za-z][A-Za-z0-9+.-]*://(?:[^\s/"'`)<>\\@]*@)?"""
     r"""(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9][A-Za-z0-9.-]*)""" + _REST
 )
 #: A protocol-relative URL. Without a scheme, ``//`` is also a comment or part of

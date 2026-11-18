@@ -26,6 +26,11 @@ spec.loader.exec_module(check)
         ('new WebSocket("wss://live.example.com/socket")', "live.example.com"),
         ('new WebSocket("ws://203.0.113.9:8080/")', "203.0.113.9"),
         ('"ftp://files.example.org/archive.zip"', "files.example.org"),
+        # A scheme glued to a digit or punctuation is still a URL to another host.
+        ('"1https://cdn.example.com/x.js"', "cdn.example.com"),
+        ('"-https://evil.example.org/x"', "evil.example.org"),
+        ("%2Fhttps://evil.example.org", "evil.example.org"),
+        ('"...wss://evil.example.org"', "evil.example.org"),
     ],
 )
 def test_every_form_of_external_url_is_reported(text, host):
