@@ -6,7 +6,7 @@ import { OUTCOME_META, OutcomeBadge } from '../shared/OutcomeBadge';
 
 const DIRECTION: Record<AuthorityTrend['direction'], { label: string; icon: LucideIcon; classes: string }> = {
   RISING: { label: 'Rising', icon: TrendingUp, classes: 'text-nominal' },
-  FALLING: { label: 'Falling', icon: TrendingDown, classes: 'text-critical' },
+  FALLING: { label: 'Falling', icon: TrendingDown, classes: 'text-red-400' },
   STEADY: { label: 'Steady', icon: Minus, classes: 'text-slate-300' },
   SINGLE_YEAR: { label: 'One year only', icon: Minus, classes: 'text-slate-400' },
 };

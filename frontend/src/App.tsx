@@ -42,7 +42,7 @@ export default function App() {
 
       <main className="mx-auto max-w-[1600px] space-y-4 px-4 py-4">
         {directory.error && !directory.data && (
-          <p role="alert" className="panel p-4 text-sm text-critical">
+          <p role="alert" className="panel p-4 text-sm text-red-400">
             Cannot load the tenant list: {directory.error}. Check that the API is running on port
             8002 and reload.
           </p>

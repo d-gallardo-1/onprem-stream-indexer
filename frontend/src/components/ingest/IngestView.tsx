@@ -81,7 +81,7 @@ export function IngestView({ snapshot, portals }: Props) {
             </button>
           </div>
           <p className="text-xs text-slate-400">Reset restores the default corpus of every tenant.</p>
-          {error && <p role="alert" className="text-sm text-critical">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         </section>
 
         <div className="space-y-4 xl:col-span-2">

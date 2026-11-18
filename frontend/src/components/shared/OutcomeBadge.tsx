@@ -4,7 +4,7 @@ import type { Outcome } from '../../types/lexstream';
 
 export const OUTCOME_META: Record<Outcome, { icon: LucideIcon; classes: string; tone: 'nominal' | 'critical' | 'warn' | 'link' }> = {
   UPHELD: { icon: CheckCircle2, classes: 'border-nominal/50 bg-nominal/10 text-nominal', tone: 'nominal' },
-  DISMISSED: { icon: XCircle, classes: 'border-critical/50 bg-critical/10 text-critical', tone: 'critical' },
+  DISMISSED: { icon: XCircle, classes: 'border-critical/50 bg-critical/10 text-red-400', tone: 'critical' },
   SETTLED_WITH_COSTS: { icon: Handshake, classes: 'border-warn/50 bg-warn/10 text-warn', tone: 'warn' },
   COMPLIANCE_ORDER: { icon: ClipboardCheck, classes: 'border-link/50 bg-link/10 text-link', tone: 'link' },
 };

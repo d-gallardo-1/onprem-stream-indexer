@@ -19,7 +19,7 @@ const TABS: { id: ViewId; label: string; icon: LucideIcon }[] = [
 const STREAM: Record<StreamStatus, { label: string; classes: string; icon: LucideIcon }> = {
   CONNECTED: { label: 'Stream live', classes: 'border-nominal/50 text-nominal', icon: Wifi },
   RECONNECTING: { label: 'Reconnecting', classes: 'border-warn/50 text-warn', icon: Wifi },
-  DISCONNECTED: { label: 'Disconnected', classes: 'border-critical/50 text-critical', icon: WifiOff },
+  DISCONNECTED: { label: 'Disconnected', classes: 'border-critical/50 text-red-400', icon: WifiOff },
 };
 
 interface Props {

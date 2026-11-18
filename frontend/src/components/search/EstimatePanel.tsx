@@ -73,7 +73,7 @@ export function EstimatePanel({ tenantId, authorities, matters, outcomes, corpus
         </label>
       </div>
 
-      {error && <p role="alert" className="text-sm text-critical">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       {!data && !error && <p className="text-sm text-slate-400">Computing…</p>}
       {data && (
         <div>

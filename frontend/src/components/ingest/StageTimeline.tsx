@@ -13,7 +13,7 @@ const STATE: Record<CrawlRun['state'], { label: string; icon: LucideIcon; classe
   RUNNING: { label: 'Running', icon: Loader, classes: 'border-warn/50 bg-warn/10 text-warn' },
   COMPLETED: { label: 'Completed', icon: CheckCircle2, classes: 'border-nominal/50 bg-nominal/10 text-nominal' },
   // A run that stopped on an error; it no longer blocks the next crawl.
-  FAILED: { label: 'Failed', icon: XCircle, classes: 'border-critical/50 bg-critical/10 text-critical' },
+  FAILED: { label: 'Failed', icon: XCircle, classes: 'border-critical/50 bg-critical/10 text-red-400' },
 };
 
 /** Stages of the tenant's latest crawl, in the order the state stream delivered them. */

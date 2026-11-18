@@ -72,12 +72,12 @@ export function SearchView({ snapshot, outcomes, matters, query, onQueryChange, 
             <p role="status" className="font-mono text-xs text-slate-300">{status}</p>
           </div>
           {stream.status === 'error' && (
-            <p role="alert" className="text-sm text-critical">
+            <p role="alert" className="text-sm text-red-400">
               The stream closed before its summary arrived. Press the button to run it again.
             </p>
           )}
           {!streamed && fetched.error && (
-            <p role="alert" className="text-sm text-critical">{fetched.error}</p>
+            <p role="alert" className="text-sm text-red-400">{fetched.error}</p>
           )}
           {(streamed || fetched.data) && (
             <ResultList hits={hits}
